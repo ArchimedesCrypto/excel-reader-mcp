@@ -1,0 +1,42 @@
+{
+  "name": "@archimdescrypto/excel-reader",
+  "version": "1.0.0",
+  "description": "MCP server for reading Excel files with automatic chunking and pagination support",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "excel-reader": "./build/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArchimdesCrypto/mcp-excel-reader.git"
+  },
+  "keywords": [
+    "excel",
+    "xlsx",
+    "mcp",
+    "sheetjs",
+    "pagination",
+    "chunking",
+    "model-context-protocol"
+  ],
+  "author": "ArchimdesCrypto",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ArchimdesCrypto/mcp-excel-reader/issues"
+  },
+  "homepage": "https://github.com/ArchimdesCrypto/mcp-excel-reader#readme",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.4.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}
