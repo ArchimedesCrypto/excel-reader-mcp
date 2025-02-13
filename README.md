@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server for reading Excel files with automatic chunking and pagination support. Built with SheetJS and TypeScript, this tool helps you handle large Excel files efficiently by automatically breaking them into manageable chunks.
 
+<a href="https://glama.ai/mcp/servers/jr2ggpdk3a"><img width="380" height="200" src="https://glama.ai/mcp/servers/jr2ggpdk3a/badge" alt="Excel Reader MCP server" /></a>
+
 ## Features
 
 - 📊 Read Excel files (.xlsx, .xls) with automatic size limits
