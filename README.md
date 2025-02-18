@@ -1,5 +1,6 @@
 # MCP Excel Reader
 
+[![smithery badge](https://smithery.ai/badge/@ArchimedesCrypto/excel-reader-mcp-chunked)](https://smithery.ai/server/@ArchimedesCrypto/excel-reader-mcp-chunked)
 A Model Context Protocol (MCP) server for reading Excel files with automatic chunking and pagination support. Built with SheetJS and TypeScript, this tool helps you handle large Excel files efficiently by automatically breaking them into manageable chunks.
 
 <a href="https://glama.ai/mcp/servers/jr2ggpdk3a"><img width="380" height="200" src="https://glama.ai/mcp/servers/jr2ggpdk3a/badge" alt="Excel Reader MCP server" /></a>
@@ -14,6 +15,14 @@ A Model Context Protocol (MCP) server for reading Excel files with automatic chu
 - 🛡️ Error handling and validation
 
 ## Installation
+
+### Installing via Smithery
+
+To install Excel Reader for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@ArchimedesCrypto/excel-reader-mcp-chunked):
+
+```bash
+npx -y @smithery/cli install @ArchimedesCrypto/excel-reader-mcp-chunked --client claude
+```
 
 ### As an MCP Server
 
