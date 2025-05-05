@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/archimedescrypto-excel-reader-mcp-badge.png)](https://mseep.ai/app/archimedescrypto-excel-reader-mcp)
+
 # MCP Excel Reader
 
 [![smithery badge](https://smithery.ai/badge/@ArchimedesCrypto/excel-reader-mcp-chunked)](https://smithery.ai/server/@ArchimedesCrypto/excel-reader-mcp-chunked)
