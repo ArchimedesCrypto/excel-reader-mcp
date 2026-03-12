@@ -9,7 +9,11 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import * as XLSX from 'xlsx';
 import { existsSync, readFileSync } from 'fs';
+import { toolHandlers, getToolByName } from './tools/index.js';
+import { loadWorkbook } from './utils/workbook-cache.js';
+import { calculateChunkSize, MAX_RESPONSE_SIZE } from './utils/chunking.js';
 
+// Legacy types for read_excel tool
 interface ExcelChunk {
   rowStart: number;
   rowEnd: number;
@@ -42,8 +46,6 @@ interface ReadExcelArgs {
   maxRows?: number;
 }
 
-const MAX_RESPONSE_SIZE = 100 * 1024; // 100KB default max response size
-
 const isValidReadExcelArgs = (args: any): args is ReadExcelArgs =>
   typeof args === 'object' &&
   args !== null &&
@@ -52,18 +54,6 @@ const isValidReadExcelArgs = (args: any): args is ReadExcelArgs =>
   (args.startRow === undefined || typeof args.startRow === 'number') &&
   (args.maxRows === undefined || typeof args.maxRows === 'number');
 
-// Estimate size of stringified JSON
-const estimateJsonSize = (obj: any): number => {
-  const str = JSON.stringify(obj);
-  return str.length * 2; // Rough estimate, multiply by 2 for unicode
-};
-
-// Calculate optimal chunk size
-const calculateChunkSize = (data: any[], maxSize: number): number => {
-  const singleRowSize = estimateJsonSize(data[0]);
-  return Math.max(1, Math.floor(maxSize / singleRowSize));
-};
-
 class ExcelReaderServer {
   private server: Server;
 
@@ -71,7 +61,7 @@ class ExcelReaderServer {
     this.server = new Server(
       {
         name: 'excel-reader',
-        version: '1.0.0',
+        version: '2.0.0',
       },
       {
         capabilities: {
@@ -100,18 +90,18 @@ class ExcelReaderServer {
     }
 
     try {
-      // Read file as buffer first
-      const data = readFileSync(filePath);
-      const workbook = XLSX.read(data, {
-        type: 'buffer',
-        cellDates: true,
-        cellNF: false,
-        cellText: false,
-        dateNF: 'yyyy-mm-dd'
-      });
+      const workbook = loadWorkbook(filePath);
       const fileName = filePath.split(/[\\/]/).pop() || '';
       const selectedSheetName = sheetName || workbook.SheetNames[0];
       const worksheet = workbook.Sheets[selectedSheetName];
+      
+      if (!worksheet) {
+        throw new McpError(
+          ErrorCode.InvalidRequest,
+          `Sheet not found: ${selectedSheetName}`
+        );
+      }
+      
       const allData = XLSX.utils.sheet_to_json(worksheet, {
         raw: true,
         dateNF: 'yyyy-mm-dd'
@@ -167,11 +157,12 @@ class ExcelReaderServer {
   }
 
   private setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      // Build tools list including the legacy read_excel tool
+      const tools = [
         {
           name: 'read_excel',
-          description: 'Read an Excel file and return its contents as structured data',
+          description: 'Read an Excel file and return its contents as structured data with automatic chunking',
           inputSchema: {
             type: 'object',
             properties: {
@@ -181,45 +172,87 @@ class ExcelReaderServer {
               },
               sheetName: {
                 type: 'string',
-                description: 'Name of the sheet to read (optional)',
+                description: 'Name of the sheet to read (optional, defaults to first sheet)',
               },
               startRow: {
                 type: 'number',
-                description: 'Starting row index (optional)',
+                description: 'Starting row index for pagination (optional, default 0)',
               },
               maxRows: {
                 type: 'number',
-                description: 'Maximum number of rows to read (optional)',
+                description: 'Maximum number of rows to read (optional, auto-calculated based on size)',
               },
             },
             required: ['filePath'],
           },
         },
-      ],
-    }));
+        // Add all new tools from the registry
+        ...toolHandlers.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        })),
+      ];
+
+      return { tools };
+    });
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      if (request.params.name !== 'read_excel') {
+      const toolName = request.params.name;
+
+      // Handle legacy read_excel tool
+      if (toolName === 'read_excel') {
+        if (!isValidReadExcelArgs(request.params.arguments)) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'Invalid read_excel arguments'
+          );
+        }
+
+        try {
+          const data = this.readExcelFile(request.params.arguments);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(data, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          if (error instanceof McpError) {
+            throw error;
+          }
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      // Handle new tools from registry
+      const tool = getToolByName(toolName);
+      if (!tool) {
         throw new McpError(
           ErrorCode.MethodNotFound,
-          `Unknown tool: ${request.params.name}`
+          `Unknown tool: ${toolName}`
         );
       }
 
-      if (!isValidReadExcelArgs(request.params.arguments)) {
+      if (!tool.validator(request.params.arguments)) {
         throw new McpError(
           ErrorCode.InvalidParams,
-          'Invalid read_excel arguments'
+          `Invalid arguments for ${toolName}`
         );
       }
 
       try {
-        const data = this.readExcelFile(request.params.arguments);
+        const result = tool.handler(request.params.arguments);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(data, null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
